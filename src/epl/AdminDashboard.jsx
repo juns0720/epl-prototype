@@ -23,6 +23,17 @@ function safeJson(value) {
   }
 }
 
+async function readJsonResponse(response) {
+  const text = await response.text();
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text };
+  }
+}
+
 function Notice({ tone = 'neutral', title, children, action }) {
   const tones = {
     neutral: { bg: '#0f1118', color: '#cbd3e8', border: '#273044' },
@@ -277,7 +288,7 @@ export default function AdminDashboard() {
     setError('');
     try {
       const response = await fetch(`/api/admin/items?status=${status}&limit=100`, { headers });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok) throw new Error(data.error || 'Failed to load admin items');
       setItems(data.items || []);
       setDashboard(data.dashboard || null);
@@ -329,7 +340,7 @@ export default function AdminDashboard() {
           actor: 'admin-ui',
         }),
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok) throw new Error(data.error || `Failed to ${action}`);
       setDrafts(prev => {
         const next = { ...prev };
@@ -361,7 +372,7 @@ export default function AdminDashboard() {
         method: 'POST',
         headers: { Authorization: `Bearer ${cronSecret}` },
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok) throw new Error(data.error || 'Collection failed');
       localStorage.setItem('epl_cron_secret', cronSecret);
       await loadItems({ preserveMessage: true });
