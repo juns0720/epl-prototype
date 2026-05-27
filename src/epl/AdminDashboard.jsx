@@ -43,9 +43,9 @@ function Notice({ tone = 'neutral', title, children, action }) {
   };
   const t = tones[tone] || tones.neutral;
   return (
-    <div className="rounded-md px-4 py-3 text-sm" style={{ background: t.bg, color: t.color, border: `1px solid ${t.border}` }}>
+    <div className="w-full max-w-full overflow-hidden rounded-md px-4 py-3 text-sm" style={{ background: t.bg, color: t.color, border: `1px solid ${t.border}` }}>
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 break-words" style={{ overflowWrap: 'anywhere' }}>
+        <div className="min-w-0 break-all" style={{ overflowWrap: 'anywhere' }}>
           {title && <div className="font-black text-white">{title}</div>}
           {children && <div className={title ? 'mt-1' : ''}>{children}</div>}
         </div>
@@ -388,7 +388,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen overflow-x-hidden" style={{ background: '#05070d', color: '#fff' }}>
-      <div className="mx-auto w-full max-w-7xl px-5 py-6">
+      <div className="mx-auto w-full max-w-7xl px-5 py-6" style={{ maxWidth: '100vw' }}>
         <header className="flex min-w-0 flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end"
           style={{ borderColor: '#1c2230' }}>
           <div className="min-w-0 flex-1">
