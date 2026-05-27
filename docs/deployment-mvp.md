@@ -118,3 +118,61 @@ Slack 알림 실패는 MVP에서 재시도하지 않는다. 대신 `audit_events
 - 첫 실제 수집 후 `content_items.ai_result.briefing`의 `title`, `summary_short`, `summary_detail`, `status`, `tags`를 확인한다.
 - 첫 실제 수집 후 `content_items.summary_short_ko`, `summary_detail_ko`, `briefing_status`, `review_reason`을 확인한다.
 - 분류, source fetch, Slack, 관리자 검수 동작이 애매하면 `audit_events`를 확인한다.
+
+## Collector Smoke Test
+
+배포 후 Cron을 켜기 전에 수동으로 collector를 1회 실행한다.
+
+```powershell
+$CRON_SECRET="여기에_CRON_SECRET"
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "https://배포_URL/api/collect" `
+  -Headers @{ Authorization = "Bearer $CRON_SECRET" }
+```
+
+정상 응답 예시:
+
+```json
+{
+  "ok": true,
+  "summary": {
+    "sources": 1,
+    "fetched": 1,
+    "inserted": 1,
+    "skipped": 0,
+    "published": 0,
+    "review": 1,
+    "discarded": 0,
+    "errors": []
+  }
+}
+```
+
+오류 source가 있어도 collector는 가능한 source를 계속 처리한다.
+
+```json
+{
+  "ok": true,
+  "summary": {
+    "sources": 2,
+    "fetched": 0,
+    "inserted": 0,
+    "errors": [
+      {
+        "source": "codex_p3_bad_source",
+        "message": "One or more parameters to your request was invalid."
+      }
+    ]
+  }
+}
+```
+
+검증 후 확인 쿼리:
+
+```sql
+select event_type, payload, created_at
+from public.audit_events
+order by created_at desc
+limit 20;
+```

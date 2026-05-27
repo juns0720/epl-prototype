@@ -38,3 +38,42 @@ P3 작업을 시작하기 전에 `docs/plans/ai-automation/07-p3-preflight-guide
 - 한 source 실패가 전체 source 처리를 중단하지 않는다.
 - 라우팅 결과가 P1 규칙과 일치한다.
 - 실제 X 글에서 생성된 한국어 요약이 원문 밖 내용을 추가하지 않고 P1 콘텐츠 계약을 따른다.
+
+## Collector Smoke Test
+
+배포 URL과 `CRON_SECRET`을 준비한 뒤 아래를 실행한다.
+
+```powershell
+$CRON_SECRET="여기에_CRON_SECRET"
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "https://배포_URL/api/collect" `
+  -Headers @{ Authorization = "Bearer $CRON_SECRET" }
+```
+
+정상 응답 예시:
+
+```json
+{
+  "ok": true,
+  "summary": {
+    "sources": 1,
+    "fetched": 1,
+    "inserted": 1,
+    "skipped": 0,
+    "published": 0,
+    "review": 1,
+    "discarded": 0,
+    "errors": []
+  }
+}
+```
+
+확인 기준:
+
+- `status`가 HTTP 200이다.
+- `summary.sources`가 active source 수와 일치한다.
+- 신규 글이 있으면 `inserted`가 증가한다.
+- 신규 글이 없으면 `fetched=0` 또는 `skipped` 중심으로 끝날 수 있다.
+- source 하나가 실패해도 전체 응답은 `ok=true`이고 `summary.errors`에 실패 source가 들어간다.
+- 실패는 `audit_events`의 `collector_source_failed` 또는 `collector_run_completed` payload에서 확인한다.

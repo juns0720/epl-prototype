@@ -118,6 +118,7 @@ AI는 항상 아래 구조의 JSON 하나만 반환해야 한다.
 - `briefing.status`가 `RUMOUR`, `UPDATE`, `DENIED`인 글
 - Upstage Solar 호출 실패나 환경변수 누락으로 fallback classifier가 처리한 글
 - 기자의 `Understand`, `sources say`, `clear stance`, `no intention`처럼 보도/입장 전달에 가까운 글은 Solar가 `OFFICIAL`로 판단해도 검수 큐로 보낸다.
+- 로컬 팀명/alias 근거가 있는데 Solar가 폐기 판단을 해도 최종 폐기 전 검수 큐로 보낸다.
 
 ## 폐기 정책
 

@@ -18,9 +18,9 @@
 ## 현재 커서
 
 - 현재 단계: `P3 수집 파이프라인`
-- 현재 작업: `P3-T4`
+- 현재 작업: `P3-T7`
 - 상세 문서: `docs/plans/ai-automation/03-ingestion-pipeline.md`
-- 목표: `X/Upstage Solar/Supabase 실패가 audit event로 남는지 검증한다.`
+- 목표: `실제 source 글 1개가 Upstage Solar를 거쳐 briefing 필드로 저장되는지 검증한다.`
 
 ## 상태 표기
 
@@ -113,9 +113,9 @@ P2 종료 확인:
 | [x] | P3-T1 X timeline fetch 검증 | `api/_lib/x.js`, `api/collect.js` | 배포 환경에서 설정된 source를 조회할 수 있음 |
 | [x] | P3-T2 idempotency 검증 | `api/collect.js`, `supabase/schema.sql` | collector를 두 번 실행해도 중복 row가 생기지 않음 |
 | [x] | P3-T3 source cursor 검증 | `api/collect.js`, `api/_lib/x.js` | 성공한 source의 `last_seen_post_id`가 갱신됨 |
-| [ ] | P3-T4 오류 처리 검증 | `api/collect.js`, `api/_lib/audit.js`, `api/_lib/slack.js` | X/Upstage Solar/Supabase 실패가 audit event로 남음 |
-| [ ] | P3-T5 보수 라우팅 검증 | `api/_lib/ai.js`, `api/collect.js` | 루머/미디어 중심 글은 publish가 아니라 review로 감 |
-| [ ] | P3-T6 collector smoke test 문서화 | `docs/deployment-mvp.md`, `03-ingestion-pipeline.md` | 수동 curl과 예상 응답이 문서화됨 |
+| [x] | P3-T4 오류 처리 검증 | `api/collect.js`, `api/_lib/audit.js`, `api/_lib/slack.js` | X/Upstage Solar/Supabase 실패가 audit event로 남음 |
+| [x] | P3-T5 보수 라우팅 검증 | `api/_lib/ai.js`, `api/collect.js` | 루머/미디어 중심 글은 publish가 아니라 review로 감 |
+| [x] | P3-T6 collector smoke test 문서화 | `docs/deployment-mvp.md`, `03-ingestion-pipeline.md` | 수동 curl과 예상 응답이 문서화됨 |
 | [ ] | P3-T7 실제 X 글 AI 요약 검증 | `api/collect.js`, `api/_lib/ai.js`, Supabase `content_items` | 실제 source 글 1개가 Upstage Solar를 거쳐 briefing 제목/짧은 요약/상세 요약/status/tags로 저장됨 |
 
 P3 종료 확인:

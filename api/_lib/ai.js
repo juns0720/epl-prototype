@@ -203,7 +203,7 @@ function enforcePolicy(result, post, aliases = []) {
   const mediaHeavy = isMediaHeavy(post);
   const hasLocalPublishSignal = hasAny(post.text, OFFICIAL_KEYWORDS);
   const reason = reviewReason(result.review_reason);
-  const targetRelevant = Boolean(result.is_target_relevant) && localEvidenceTeams.length > 0;
+  const targetRelevant = localEvidenceTeams.length > 0;
   let decision = normalizeDecision(result.decision);
 
   const cleanResult = {
@@ -263,6 +263,14 @@ function enforcePolicy(result, post, aliases = []) {
       ...cleanResult,
       decision: 'review',
       review_reason: cleanResult.review_reason || '사진/영상 중심이거나 텍스트가 짧아 검수가 필요합니다.',
+    };
+  }
+
+  if (cleanResult.decision === 'discard') {
+    return {
+      ...cleanResult,
+      decision: 'review',
+      review_reason: cleanResult.review_reason || '대상 팀 근거가 있어 폐기 전에 검수가 필요합니다.',
     };
   }
 
