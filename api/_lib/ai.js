@@ -3,6 +3,8 @@ const { OFFICIAL_KEYWORDS, RUMOUR_KEYWORDS, TARGET_TEAMS, hasAny, matchTeams } =
 const TARGET_TEAM_CODES = TARGET_TEAMS.map(team => team.code);
 const BRIEFING_STATUSES = ['OFFICIAL', 'RUMOUR', 'UPDATE', 'CONFIRMED', 'DENIED'];
 const PUBLISHABLE_STATUSES = new Set(['OFFICIAL', 'CONFIRMED']);
+const KOREAN_SUMMARY_FALLBACK = '한국어 요약 생성이 충분하지 않아 원문 확인 후 검수가 필요합니다.';
+const NON_TARGET_SUMMARY = '대상 6개 팀과 직접 연결되지 않아 폐기된 글입니다.';
 
 const CLASSIFICATION_SCHEMA = {
   type: 'object',
@@ -121,6 +123,39 @@ function textSnippet(post, max = 220) {
   return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 }
 
+function hasHangul(value) {
+  return /[가-힣]/.test(String(value || ''));
+}
+
+function ensureKoreanBriefing(briefing, targetRelevant) {
+  const fallback = targetRelevant
+    ? {
+      title: '검수 필요 EPL 업데이트',
+      summary_short: KOREAN_SUMMARY_FALLBACK,
+      summary_detail: KOREAN_SUMMARY_FALLBACK,
+    }
+    : {
+      title: '비대상 EPL 업데이트',
+      summary_short: NON_TARGET_SUMMARY,
+      summary_detail: NON_TARGET_SUMMARY,
+    };
+
+  const next = {
+    ...briefing,
+    title: hasHangul(briefing.title) ? briefing.title : fallback.title,
+    summary_short: hasHangul(briefing.summary_short) ? briefing.summary_short : fallback.summary_short,
+    summary_detail: hasHangul(briefing.summary_detail) ? briefing.summary_detail : fallback.summary_detail,
+  };
+
+  return {
+    briefing: next,
+    changed:
+      next.title !== briefing.title ||
+      next.summary_short !== briefing.summary_short ||
+      next.summary_detail !== briefing.summary_detail,
+  };
+}
+
 function isMediaHeavy(post) {
   return (post.media || []).length > 0 && String(post.text || '').trim().length < 40;
 }
@@ -151,11 +186,10 @@ function normalizeBriefing(result, teams, post) {
 }
 
 function neutralBriefing(post) {
-  const snippet = textSnippet(post) || '원문 텍스트가 비어 있습니다.';
   return {
     title: '비대상 EPL 업데이트',
-    summary_short: snippet,
-    summary_detail: snippet,
+    summary_short: NON_TARGET_SUMMARY,
+    summary_detail: NON_TARGET_SUMMARY,
     tags: [],
     status: 'UPDATE',
   };
@@ -215,6 +249,10 @@ function enforcePolicy(result, post, aliases = []) {
   const hasLocalPublishSignal = hasAny(post.text, OFFICIAL_KEYWORDS);
   const reason = reviewReason(result.review_reason);
   const targetRelevant = localEvidenceTeams.length > 0;
+  const koreanGuard = ensureKoreanBriefing(briefing, targetRelevant);
+  const koreanReviewReason = targetRelevant && koreanGuard.changed
+    ? '한국어 브리핑이 충분하지 않아 검수가 필요합니다.'
+    : null;
   let decision = normalizeDecision(result.decision);
 
   const cleanResult = {
@@ -230,9 +268,9 @@ function enforcePolicy(result, post, aliases = []) {
       journalists: Array.isArray(result.entities?.journalists) ? result.entities.journalists : [],
     },
     evidence,
-    review_reason: reason,
+    review_reason: reason || koreanReviewReason,
     briefing: {
-      ...briefing,
+      ...koreanGuard.briefing,
       tags: targetRelevant ? localEvidenceTeams : [],
     },
   };
@@ -307,6 +345,8 @@ function systemPrompt() {
     'Discard posts unrelated to those six teams.',
     'If a team is not named but a player/manager alias clearly links to one target team, tag that team. If the link is uncertain, choose review.',
     'All user-facing briefing fields must be written in Korean.',
+    'The fields briefing.title, briefing.summary_short, and briefing.summary_detail must each contain Korean Hangul characters.',
+    'Do not copy the English source text into briefing.summary_short or briefing.summary_detail.',
     'Use only facts stated in the original X post. Do not add background context, fan sentiment, source credibility commentary, debate framing, opinion, or emotional wording.',
     'Never mention names, seasons, clubs, records, or historical context that are not literally present in the original X post.',
     'Do not add "reported by", "according to", source attribution, or journalist framing unless that wording is visible in the original X post text.',
