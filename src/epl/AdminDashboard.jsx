@@ -106,7 +106,7 @@ function normalizeBriefingStatus(status, newsType) {
 
 function Metric({ label, value }) {
   return (
-    <div className="min-w-0 rounded-md px-4 py-3" style={{ background: '#0f1118', border: '1px solid #1f2430' }}>
+    <div className="min-h-[74px] min-w-0 rounded-md px-4 py-3" style={{ background: '#0f1118', border: '1px solid #1f2430' }}>
       <div className="text-xs font-semibold uppercase" style={{ color: '#687086' }}>{label}</div>
       <div className="mt-1 text-2xl font-black text-white">{value ?? 0}</div>
     </div>
@@ -119,6 +119,65 @@ function EmptyState({ status }) {
     <div className="min-w-0 rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
       <div className="text-lg font-black text-white">{label} 항목이 없습니다</div>
       <p className="mt-2 text-sm">필터를 바꾸거나 수동 수집을 실행하면 새 항목을 확인할 수 있습니다.</p>
+    </div>
+  );
+}
+
+function SkeletonLine({ className = '' }) {
+  return (
+    <div
+      className={`rounded ${className}`}
+      style={{ background: 'linear-gradient(90deg, #11141d 0%, #1a2030 48%, #11141d 100%)' }}
+    />
+  );
+}
+
+function ItemSkeleton() {
+  return (
+    <div className="min-h-[430px] min-w-0 rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <SkeletonLine className="h-7 w-16" />
+        <SkeletonLine className="h-7 w-20" />
+        <SkeletonLine className="h-7 w-14" />
+        <SkeletonLine className="ml-auto h-4 w-24" />
+      </div>
+      <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <div className="min-w-0 space-y-3">
+          <SkeletonLine className="h-4 w-2/5" />
+          <SkeletonLine className="h-4 w-full" />
+          <SkeletonLine className="h-4 w-11/12" />
+          <SkeletonLine className="h-4 w-4/5" />
+          <SkeletonLine className="mt-5 h-16 w-full" />
+          <SkeletonLine className="h-3 w-2/3" />
+          <SkeletonLine className="h-3 w-1/2" />
+        </div>
+        <div className="min-w-0 space-y-3">
+          <SkeletonLine className="h-10 w-full" />
+          <SkeletonLine className="h-24 w-full" />
+          <SkeletonLine className="h-36 w-full" />
+          <SkeletonLine className="h-10 w-full" />
+          <div className="flex gap-2">
+            <SkeletonLine className="h-10 w-16" />
+            <SkeletonLine className="h-10 w-16" />
+            <SkeletonLine className="h-10 w-16" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SourceSkeleton() {
+  return (
+    <div className="min-w-0 rounded p-3" style={{ background: '#10131b', border: '1px solid #252c3a' }}>
+      <div className="flex items-center gap-2">
+        <SkeletonLine className="h-4 w-28" />
+        <SkeletonLine className="h-6 w-10" />
+      </div>
+      <div className="mt-3 space-y-2">
+        <SkeletonLine className="h-3 w-4/5" />
+        <SkeletonLine className="h-3 w-3/5" />
+      </div>
     </div>
   );
 }
@@ -269,6 +328,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const isInitialLoading = Boolean(adminToken && busy && !loaded && !error);
 
   const headers = useMemo(() => ({
     Authorization: `Bearer ${adminToken}`,
@@ -437,16 +497,14 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {!adminToken && (
-          <div className="mt-4">
+        <div className="mt-4 min-h-[66px]" aria-live="polite">
+          {!adminToken && (
             <Notice tone="warn" title="ADMIN_TOKEN을 입력해 주세요">
               관리자 데이터를 불러오려면 Vercel 환경변수에 등록한 토큰이 필요합니다.
             </Notice>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="mt-4">
+          {adminToken && error && (
             <Notice
               tone="bad"
               title="관리자 데이터를 불러오지 못했습니다"
@@ -459,14 +517,12 @@ export default function AdminDashboard() {
               ) : null}>
               {error}
             </Notice>
-          </div>
-        )}
+          )}
 
-        {message && (
-          <div className="mt-4">
+          {adminToken && !error && message && (
             <Notice tone={messageTone}>{message}</Notice>
-          </div>
-        )}
+          )}
+        </div>
 
         <section className="mt-5 grid min-w-0 gap-3 md:grid-cols-5">
           <Metric label="Total loaded" value={dashboard?.total} />
@@ -493,10 +549,11 @@ export default function AdminDashboard() {
               ))}
             </div>
             <div className="space-y-3">
-              {busy && !loaded ? (
-                <div className="min-w-0 rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
-                  불러오는 중입니다.
-                </div>
+              {isInitialLoading ? (
+                <>
+                  <ItemSkeleton />
+                  <ItemSkeleton />
+                </>
               ) : loaded && items.length === 0 ? (
                 <EmptyState status={status} />
               ) : !loaded && adminToken && !error ? (
@@ -519,12 +576,17 @@ export default function AdminDashboard() {
           <aside className="min-w-0 space-y-3">
             <div className="min-w-0 rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
               <div className="text-xs font-bold uppercase" style={{ color: '#687086' }}>Last collected</div>
-              <div className="mt-1 text-sm text-white">{dashboard?.lastCollectedAt || '-'}</div>
+              <div className="mt-1 min-h-[20px] text-sm text-white">{isInitialLoading ? '-' : (dashboard?.lastCollectedAt || '-')}</div>
             </div>
             <div className="min-w-0 rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
               <div className="mb-3 text-xs font-bold uppercase" style={{ color: '#687086' }}>Sources</div>
-              <div className="space-y-2">
-                {(dashboard?.sources || []).map(source => (
+              <div className="min-h-[184px] space-y-2">
+                {isInitialLoading ? (
+                  <>
+                    <SourceSkeleton />
+                    <SourceSkeleton />
+                  </>
+                ) : (dashboard?.sources || []).map(source => (
                   <div key={source.id} className="min-w-0 rounded p-3" style={{ background: '#10131b', border: '1px solid #252c3a' }}>
                     <div className="flex items-center gap-2">
                       <span className="min-w-0 break-words font-bold" style={{ overflowWrap: 'anywhere' }}>@{source.handle}</span>
