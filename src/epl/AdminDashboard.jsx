@@ -44,12 +44,12 @@ function Notice({ tone = 'neutral', title, children, action }) {
   const t = tones[tone] || tones.neutral;
   return (
     <div className="rounded-md px-4 py-3 text-sm" style={{ background: t.bg, color: t.color, border: `1px solid ${t.border}` }}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 break-words" style={{ overflowWrap: 'anywhere' }}>
           {title && <div className="font-black text-white">{title}</div>}
           {children && <div className={title ? 'mt-1' : ''}>{children}</div>}
         </div>
-        {action}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
     </div>
   );
@@ -64,7 +64,7 @@ function Badge({ children, tone = 'neutral' }) {
   };
   const t = tones[tone] || tones.neutral;
   return (
-    <span className="inline-flex items-center rounded px-2 py-1 text-xs font-bold"
+    <span className="inline-flex min-w-0 items-center rounded px-2 py-1 text-xs font-bold"
       style={{ background: t.bg, color: t.color, border: `1px solid ${t.border}` }}>
       {children}
     </span>
@@ -106,7 +106,7 @@ function normalizeBriefingStatus(status, newsType) {
 
 function Metric({ label, value }) {
   return (
-    <div className="rounded-md px-4 py-3" style={{ background: '#0f1118', border: '1px solid #1f2430' }}>
+    <div className="min-w-0 rounded-md px-4 py-3" style={{ background: '#0f1118', border: '1px solid #1f2430' }}>
       <div className="text-xs font-semibold uppercase" style={{ color: '#687086' }}>{label}</div>
       <div className="mt-1 text-2xl font-black text-white">{value ?? 0}</div>
     </div>
@@ -116,7 +116,7 @@ function Metric({ label, value }) {
 function EmptyState({ status }) {
   const label = STATUS_LABELS[status] || status;
   return (
-    <div className="rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
+    <div className="min-w-0 rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
       <div className="text-lg font-black text-white">{label} 항목이 없습니다</div>
       <p className="mt-2 text-sm">필터를 바꾸거나 수동 수집을 실행하면 새 항목을 확인할 수 있습니다.</p>
     </div>
@@ -135,7 +135,7 @@ function ItemEditor({ item, draft, onDraft, onAction, busy }) {
   const reviewNote = draft.review_note ?? item.review_note ?? '';
 
   return (
-    <div className="rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
+    <div className="min-w-0 rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={statusTone(item.status)}>{item.status}</Badge>
         <Badge tone={briefingTone(briefingStatus)}>{briefingStatus || item.news_type}</Badge>
@@ -145,15 +145,15 @@ function ItemEditor({ item, draft, onDraft, onAction, busy }) {
         </span>
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-        <div>
+      <div className="mt-3 grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <div className="min-w-0">
           <a className="text-sm font-bold text-white underline decoration-slate-600 underline-offset-4"
             href={item.raw_url}
             target="_blank"
             rel="noreferrer">
             @{item.raw_author_handle || 'source'} / {item.raw_post_id}
           </a>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6" style={{ color: '#cbd3e8' }}>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6" style={{ color: '#cbd3e8', overflowWrap: 'anywhere' }}>
             {item.raw_text}
           </p>
           {reason && (
@@ -164,13 +164,13 @@ function ItemEditor({ item, draft, onDraft, onAction, busy }) {
           {evidence.length > 0 && (
             <div className="mt-3 space-y-1">
               {evidence.map((line, index) => (
-                <p key={index} className="text-xs" style={{ color: '#8791aa' }}>{line}</p>
+                <p key={index} className="break-words text-xs" style={{ color: '#8791aa', overflowWrap: 'anywhere' }}>{line}</p>
               ))}
             </div>
           )}
         </div>
 
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <label className="block">
             <span className="mb-1 block text-xs font-bold uppercase" style={{ color: '#687086' }}>한국어 제목</span>
             <input
@@ -215,7 +215,7 @@ function ItemEditor({ item, draft, onDraft, onAction, busy }) {
           </label>
           <details className="rounded-md p-3" style={{ background: '#080a10', border: '1px solid #202635' }}>
             <summary className="cursor-pointer text-xs font-bold" style={{ color: '#8791aa' }}>AI JSON</summary>
-            <pre className="mt-2 max-h-48 overflow-auto text-xs" style={{ color: '#a8b0c7' }}>{safeJson(item.ai_result)}</pre>
+            <pre className="mt-2 max-h-48 max-w-full overflow-auto text-xs" style={{ color: '#a8b0c7' }}>{safeJson(item.ai_result)}</pre>
           </details>
           <label className="block">
             <span className="mb-1 block text-xs font-bold uppercase" style={{ color: '#687086' }}>반려 메모</span>
@@ -387,15 +387,15 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: '#05070d', color: '#fff' }}>
-      <div className="mx-auto max-w-7xl px-5 py-6">
-        <header className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end"
+    <div className="min-h-screen overflow-x-hidden" style={{ background: '#05070d', color: '#fff' }}>
+      <div className="mx-auto w-full max-w-7xl px-5 py-6">
+        <header className="flex min-w-0 flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end"
           style={{ borderColor: '#1c2230' }}>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <div className="text-xs font-bold uppercase" style={{ color: '#687086' }}>EPL X Automation</div>
-            <h1 className="mt-1 text-3xl font-black">Admin dashboard</h1>
+            <h1 className="mt-1 break-words text-3xl font-black">Admin dashboard</h1>
           </div>
-          <div className="grid gap-2 md:grid-cols-2 lg:w-[560px]">
+          <div className="grid w-full min-w-0 gap-2 md:grid-cols-2 lg:w-[560px]">
             <input
               type="password"
               value={adminToken}
@@ -413,7 +413,7 @@ export default function AdminDashboard() {
               style={{ background: '#11141d', color: '#fff', border: '1px solid #283040' }}
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button onClick={loadItems} disabled={busy || !adminToken}
               className="rounded-md px-4 py-2 text-sm font-bold disabled:opacity-50"
               style={{ background: '#e8edf7', color: '#05070d' }}>
@@ -458,7 +458,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <section className="mt-5 grid gap-3 md:grid-cols-5">
+        <section className="mt-5 grid min-w-0 gap-3 md:grid-cols-5">
           <Metric label="Total loaded" value={dashboard?.total} />
           <Metric label="Published" value={dashboard?.published} />
           <Metric label="Review" value={dashboard?.review} />
@@ -466,8 +466,8 @@ export default function AdminDashboard() {
           <Metric label="Rejected" value={dashboard?.rejected} />
         </section>
 
-        <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_320px]">
-          <div>
+        <section className="mt-5 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {STATUS_OPTIONS.map(option => (
                 <button key={option}
@@ -484,13 +484,13 @@ export default function AdminDashboard() {
             </div>
             <div className="space-y-3">
               {busy && !loaded ? (
-                <div className="rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
+                <div className="min-w-0 rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
                   불러오는 중입니다.
                 </div>
               ) : loaded && items.length === 0 ? (
                 <EmptyState status={status} />
               ) : !loaded && adminToken && !error ? (
-                <div className="rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
+                <div className="min-w-0 rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
                   Refresh를 눌러 큐를 불러오세요.
                 </div>
               ) : items.map(item => (
@@ -506,18 +506,18 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <aside className="space-y-3">
-            <div className="rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
+          <aside className="min-w-0 space-y-3">
+            <div className="min-w-0 rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
               <div className="text-xs font-bold uppercase" style={{ color: '#687086' }}>Last collected</div>
               <div className="mt-1 text-sm text-white">{dashboard?.lastCollectedAt || '-'}</div>
             </div>
-            <div className="rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
+            <div className="min-w-0 rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
               <div className="mb-3 text-xs font-bold uppercase" style={{ color: '#687086' }}>Sources</div>
               <div className="space-y-2">
                 {(dashboard?.sources || []).map(source => (
-                  <div key={source.id} className="rounded p-3" style={{ background: '#10131b', border: '1px solid #252c3a' }}>
+                  <div key={source.id} className="min-w-0 rounded p-3" style={{ background: '#10131b', border: '1px solid #252c3a' }}>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold">@{source.handle}</span>
+                      <span className="min-w-0 break-words font-bold" style={{ overflowWrap: 'anywhere' }}>@{source.handle}</span>
                       <Badge>{`T${source.tier}`}</Badge>
                       {!source.active && <Badge tone="bad">off</Badge>}
                     </div>
