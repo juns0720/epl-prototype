@@ -158,7 +158,7 @@ on conflict (handle) do update set
 - 선수/감독 alias는 현재 대상 팀과 연결이 명확할 때만 `active=true`로 둔다.
 - 이적, 임대 종료, 감독 교체 등으로 연결이 오래되면 삭제하지 않고 `active=false`로 바꾼다.
 - 비활성화 사유는 `notes`에 적고, 마지막 확인일은 `last_verified_at`에 남긴다.
-- alias만으로 팀을 추론한 글은 자동 발행보다 검수 큐를 우선한다.
+- alias가 한 대상 팀으로 명확히 연결되면 자동 발행 후보로 둘 수 있다. alias가 오래됐거나 여러 팀으로 해석될 수 있으면 검수 큐로 보낸다.
 
 ## 종료 조건
 

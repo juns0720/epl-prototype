@@ -75,7 +75,7 @@
 | [x] | P1-T1 `content.md` 규칙을 가이드에 병합 | `content.md`, `docs/ai-automation-guidelines.md` | 가이드에 한국어 전용, 원 트윗 사실만, 추가 금지 표현, 배경 추가 금지 규칙이 명시됨 |
 | [x] | P1-T2 AI JSON 계약 수정 | `api/_lib/ai.js` | 구조화 출력에 `briefing.title`, `summary_short`, `summary_detail`, `tags`, `status`가 포함됨 |
 | [x] | P1-T3 fallback classifier 출력 형태 수정 | `api/_lib/ai.js` | Upstage Solar 키가 없어도 같은 계약을 반환함 |
-| [x] | P1-T4 자동 발행 정책 수정 | `api/_lib/ai.js` | publish 기준이 `briefing.status`와 보수 정책을 사용함 |
+| [x] | P1-T4 자동 발행 정책 수정 | `api/_lib/ai.js` | publish 기준이 팀 확정, 정보성, 미디어 의존 여부, 감상 여부를 사용함 |
 | [x] | P1-T5 feed/admin 매핑 수정 | `api/_lib/feed.js`, `src/epl/AdminDashboard.jsx` | feed/admin이 제목, 짧은 요약, 상세 요약, briefing status를 사용함 |
 | [x] | P1-T6 팀 추론/분류 평가셋 추가 | `docs/ai-automation-guidelines.md`, `01-content-contract.md` | 최소 8개 케이스가 직접 팀 언급, 선수만 언급, 감독만 언급, 추상 표현, 비대상 팀, 오피셜, 루머, 미디어 중심 글의 예상 팀/decision/status를 명시함 |
 
@@ -114,7 +114,7 @@ P2 종료 확인:
 | [x] | P3-T2 idempotency 검증 | `api/collect.js`, `supabase/schema.sql` | collector를 두 번 실행해도 중복 row가 생기지 않음 |
 | [x] | P3-T3 source cursor 검증 | `api/collect.js`, `api/_lib/x.js` | 성공한 source의 `last_seen_post_id`가 갱신됨 |
 | [x] | P3-T4 오류 처리 검증 | `api/collect.js`, `api/_lib/audit.js`, `api/_lib/slack.js` | X/Upstage Solar/Supabase 실패가 audit event로 남음 |
-| [x] | P3-T5 보수 라우팅 검증 | `api/_lib/ai.js`, `api/collect.js` | 루머/미디어 중심 글은 publish가 아니라 review로 감 |
+| [x] | P3-T5 라우팅 검증 | `api/_lib/ai.js`, `api/collect.js` | 루머/부인/업데이트도 정보성이 있으면 publish, 미디어 의존/감상/팀 불확실 글은 review로 감 |
 | [x] | P3-T6 collector smoke test 문서화 | `docs/deployment-mvp.md`, `03-ingestion-pipeline.md` | 수동 curl과 예상 응답이 문서화됨 |
 | [x] | P3-T7 실제 X 글 AI 요약 검증 | `api/collect.js`, `api/_lib/ai.js`, Supabase `content_items` | 실제 source 글 1개가 Upstage Solar를 거쳐 briefing 제목/짧은 요약/상세 요약/status/tags로 저장됨 |
 
@@ -180,9 +180,10 @@ P6 종료 확인:
 
 - source에서 feed까지 하나의 item이 생성됨
 - 실제 item의 `briefing.title`, `summary_short`, `summary_detail`, `status`, `tags`가 P1 규칙과 일치함
-- 루머나 애매한 글이 검수 큐에 들어감
+- 루머/부인/업데이트도 팀과 정보가 확실하면 자동 발행됨
+- 팀 불확실, 미디어 의존, 정보 없음, 기자 감상 글이 검수 큐에 들어감
 - 승인한 검수 item이 피드에 표시됨
-- 높은 확신의 official item이 자동 발행될 수 있음
+- 높은 확신의 informative item이 자동 발행될 수 있음
 - 실패가 관리자 source 상태 또는 audit event에 드러남
 
 ---
@@ -204,7 +205,7 @@ P6 종료 확인:
 - P1 콘텐츠 계약 정렬:
   - AI structured output이 nested `briefing` 계약을 사용함.
   - fallback classifier도 같은 계약을 반환함.
-  - 자동 발행 기준이 `briefing.status`, confidence, evidence, media-heavy 여부를 함께 사용함.
+  - 자동 발행 기준이 팀 확정, 정보성, confidence, evidence, media-heavy 여부, 기자 감상 여부를 함께 사용함.
   - feed/admin/Slack 매핑이 `briefing.title`, `summary_short`, `summary_detail`, `status`, `tags`를 우선 사용함.
 - P2 데이터 모델 정렬:
   - `content_items`에 `summary_short_ko`, `summary_detail_ko`, `briefing_status`, `review_reason` 필드가 추가됨.
@@ -238,7 +239,7 @@ P6 종료 확인:
 - AI 출력은 Upstage Solar Chat Completions와 서버 측 JSON 정규화/보수 정책을 사용한다.
 - Slack Incoming Webhook 2개를 사용한다.
 - 15분 수집은 외부 Cron으로 실행한다.
-- 자동 발행은 보수적으로 처리한다.
+- 자동 발행은 오피셜 여부가 아니라 대상 팀 확정과 텍스트 정보성을 기준으로 처리한다.
 - live 데이터가 비어 있거나 API가 실패할 수 있으므로 mock feed fallback을 유지한다.
 
 ## 막힌 점

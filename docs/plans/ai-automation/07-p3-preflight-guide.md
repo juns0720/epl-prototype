@@ -313,7 +313,8 @@ limit 10;
 - `summary_detail_ko`가 비어 있지 않다.
 - `briefing_status`가 `OFFICIAL`, `CONFIRMED`, `UPDATE`, `RUMOUR`, `DENIED` 중 하나다.
 - 대상 6개 팀이 아니면 `discarded`로 가야 한다.
-- 루머/애매한 글은 `review`로 가야 한다.
+- 루머/부인/업데이트도 팀과 정보가 확실하면 `published`로 갈 수 있다.
+- 팀 불확실, 미디어 의존, 정보 없음, 기자 감상 글은 `review`로 가야 한다.
 
 audit도 확인한다.
 

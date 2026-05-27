@@ -28,7 +28,7 @@ P3 작업을 시작하기 전에 `docs/plans/ai-automation/07-p3-preflight-guide
 | P3-T2 | idempotency 검증 | collector를 두 번 실행해도 중복 row가 생기지 않음 |
 | P3-T3 | source cursor 검증 | source 처리가 성공한 뒤 `last_seen_post_id`가 갱신됨 |
 | P3-T4 | 오류 처리 검증 | X/Upstage Solar/Supabase 실패가 audit event로 남음 |
-| P3-T5 | 보수 라우팅 검증 | 루머/미디어 중심 글은 publish가 아니라 review로 감 |
+| P3-T5 | 라우팅 검증 | 루머/부인/업데이트도 정보성이 있으면 publish, 미디어 의존/감상/팀 불확실 글은 review로 감 |
 | P3-T6 | collector smoke test 문서화 | 수동 curl과 예상 응답이 문서화됨 |
 | P3-T7 | 실제 X 글 AI 요약 검증 | 실제 source 글 1개가 Upstage Solar를 거쳐 `briefing.title`, `summary_short`, `summary_detail`, `status`, `tags`로 저장됨 |
 
@@ -82,8 +82,9 @@ Invoke-RestMethod `
 
 2026-05-27에 Vercel 배포 환경과 live Supabase에서 실제 X source를 수집해 검증했다.
 
-- `David_Ornstein` source에서 Liverpool 관련 글이 `team_tags=["LIV"]`, `briefing_status="RUMOUR"`, `status="review"`로 저장됨.
-- `SkySportsPL` source에서 Arsenal 관련 글이 `team_tags=["ARS"]`, `briefing_status="CONFIRMED"`, `status="review"`로 저장됨.
+- 과거 보수 정책에서는 `RUMOUR`와 일부 `CONFIRMED` 글도 `status="review"`로 저장됐지만, 현재 정책에서는 팀 확정과 텍스트 정보성이 충분하면 자동 발행할 수 있다.
+- `David_Ornstein` source에서 Liverpool 관련 글이 `team_tags=["LIV"]`, `briefing_status="RUMOUR"`로 저장되는 것을 확인함.
+- `SkySportsPL` source에서 Arsenal 관련 글이 `team_tags=["ARS"]`, `briefing_status="CONFIRMED"`로 저장되는 것을 확인함.
 - `@TheAthleticFC` 안에 포함된 `CFC` 문자열이 첼시로 오탐되는 문제를 발견해 alias 매칭을 단어/해시태그 경계 기반으로 보강함.
 - `City`, `United`, `AFC`, `Reds`, `Blues` 같은 넓은 club alias는 live `team_aliases`에서 `active=false`로 정리함.
 - Upstage Solar가 `first title in 22 years`를 원문 밖 역사 맥락으로 확장하지 않도록 프롬프트를 강화하고, 폐기 row에는 Solar가 만든 추정 요약 대신 원문 기반 중립 브리핑을 저장하도록 보강함.

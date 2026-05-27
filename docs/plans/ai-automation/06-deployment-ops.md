@@ -50,7 +50,8 @@
 
 - source에서 feed까지 하나의 item이 생성된다.
 - 실제 item의 `briefing.title`, `summary_short`, `summary_detail`, `status`, `tags`가 P1 규칙과 일치한다.
-- 루머나 애매한 글이 검수 큐에 들어간다.
+- 루머/부인/업데이트도 팀과 정보가 확실하면 자동 발행된다.
+- 팀 불확실, 미디어 의존, 정보 없음, 기자 감상 글이 검수 큐에 들어간다.
 - 승인한 검수 item이 피드에 표시된다.
-- 높은 확신의 official item이 자동 발행될 수 있다.
+- 높은 확신의 informative item이 자동 발행될 수 있다.
 - 실패가 관리자 source 상태 또는 audit event에 드러난다.

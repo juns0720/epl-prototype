@@ -2,7 +2,8 @@ const { OFFICIAL_KEYWORDS, RUMOUR_KEYWORDS, TARGET_TEAMS, hasAny, matchTeams } =
 
 const TARGET_TEAM_CODES = TARGET_TEAMS.map(team => team.code);
 const BRIEFING_STATUSES = ['OFFICIAL', 'RUMOUR', 'UPDATE', 'CONFIRMED', 'DENIED'];
-const PUBLISHABLE_STATUSES = new Set(['OFFICIAL', 'CONFIRMED']);
+const TEAM_RESOLUTIONS = ['certain', 'ambiguous', 'none'];
+const AUTO_PUBLISH_CONFIDENCE = 0.7;
 const KOREAN_SUMMARY_FALLBACK = '한국어 요약 생성이 충분하지 않아 원문 확인 후 검수가 필요합니다.';
 const NON_TARGET_SUMMARY = '대상 6개 팀과 직접 연결되지 않아 폐기된 글입니다.';
 
@@ -17,6 +18,10 @@ const CLASSIFICATION_SCHEMA = {
     'entities',
     'evidence',
     'review_reason',
+    'is_informative',
+    'requires_visual_context',
+    'is_journalist_opinion',
+    'team_resolution',
     'briefing',
   ],
   properties: {
@@ -42,6 +47,10 @@ const CLASSIFICATION_SCHEMA = {
     review_reason: {
       anyOf: [{ type: 'string' }, { type: 'null' }],
     },
+    is_informative: { type: 'boolean' },
+    requires_visual_context: { type: 'boolean' },
+    is_journalist_opinion: { type: 'boolean' },
+    team_resolution: { type: 'string', enum: TEAM_RESOLUTIONS },
     briefing: {
       type: 'object',
       additionalProperties: false,
@@ -101,6 +110,21 @@ function normalizeDecision(value) {
   return ['publish', 'review', 'discard'].includes(value) ? value : 'review';
 }
 
+function normalizeBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', 'yes', '1'].includes(normalized)) return true;
+    if (['false', 'no', '0'].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+function normalizeTeamResolution(value, fallback = 'none') {
+  const normalized = String(value || '').trim().toLowerCase();
+  return TEAM_RESOLUTIONS.includes(normalized) ? normalized : fallback;
+}
+
 function normalizeStatus(value, fallback = 'UPDATE') {
   const normalized = String(value || '').trim().toUpperCase();
   if (BRIEFING_STATUSES.includes(normalized)) return normalized;
@@ -156,8 +180,36 @@ function ensureKoreanBriefing(briefing, targetRelevant) {
   };
 }
 
+function normalizedPostText(post) {
+  return String(post.text || '').replace(/\s+/g, ' ').trim();
+}
+
+function isClearlyNonInformative(post) {
+  const text = normalizedPostText(post);
+  if (!text) return true;
+
+  const normalized = text.toLowerCase();
+  const withoutUrls = normalized.replace(/https?:\/\/\S+/g, '').trim();
+  if (!withoutUrls) return true;
+  if (withoutUrls.length < 12) return true;
+
+  return [
+    /^soon\.?$/,
+    /^more soon\.?$/,
+    /^more to follow\.?$/,
+    /^watch\.?$/,
+    /^watch this\.?$/,
+    /^thoughts\??$/,
+    /^big news soon\.?$/,
+    /^announcement soon\.?$/,
+  ].some(pattern => pattern.test(withoutUrls));
+}
+
 function isMediaHeavy(post) {
-  return (post.media || []).length > 0 && String(post.text || '').trim().length < 40;
+  if ((post.media || []).length === 0) return false;
+  const text = normalizedPostText(post);
+  if (text.length < 80) return true;
+  return isClearlyNonInformative(post);
 }
 
 function legacyNewsTypeFromBriefingStatus(status, decision) {
@@ -222,6 +274,10 @@ function fallbackClassify(post, aliases) {
       journalists: post.author_handle ? [post.author_handle] : [],
     },
     evidence: relevant ? ['Upstage Solar 키가 없어 alias 기반 규칙으로만 분류했습니다.'] : ['대상 6개 팀 alias와 일치하지 않았습니다.'],
+    is_informative: !isClearlyNonInformative(post),
+    requires_visual_context: isMediaHeavy(post),
+    is_journalist_opinion: false,
+    team_resolution: relevant ? 'certain' : 'none',
     review_reason: relevant
       ? (isMediaHeavy(post) ? '사진/영상 중심이거나 텍스트가 짧아 검수가 필요합니다.' : 'Upstage Solar 키가 없어 자동 발행하지 않고 검수로 보냅니다.')
       : null,
@@ -238,27 +294,31 @@ function fallbackClassify(post, aliases) {
 function enforcePolicy(result, post, aliases = []) {
   const localEvidenceTeams = uniqueTargetTeams(matchTeams(post.text, aliases));
   const modelTeams = uniqueTargetTeams([...(result.teams || []), ...((result.briefing && result.briefing.tags) || [])]);
-  const teams = localEvidenceTeams.length > 0
-    ? localEvidenceTeams
-    : modelTeams.filter(code => localEvidenceTeams.includes(code));
+  const modelClaimsTarget = normalizeBoolean(result.is_target_relevant, false) || modelTeams.length > 0;
+  const confirmedTarget = localEvidenceTeams.length > 0;
+  const hasPossibleTarget = confirmedTarget || modelClaimsTarget;
+  const teams = confirmedTarget ? localEvidenceTeams : modelTeams;
   const confidence = normalizeConfidence(result.confidence);
   const briefing = normalizeBriefing(result, teams, post);
   const evidence = Array.isArray(result.evidence) ? result.evidence.filter(Boolean).map(String) : [];
   const hasEvidence = evidence.length > 0;
-  const mediaHeavy = isMediaHeavy(post);
-  const hasLocalPublishSignal = hasAny(post.text, OFFICIAL_KEYWORDS);
+  const informative = normalizeBoolean(result.is_informative, !isClearlyNonInformative(post)) && !isClearlyNonInformative(post);
+  const requiresVisualContext = normalizeBoolean(result.requires_visual_context, isMediaHeavy(post)) || isMediaHeavy(post);
+  const journalistOpinion = normalizeBoolean(result.is_journalist_opinion, false);
+  const teamResolution = confirmedTarget
+    ? 'certain'
+    : normalizeTeamResolution(result.team_resolution, modelClaimsTarget ? 'ambiguous' : 'none');
   const reason = reviewReason(result.review_reason);
-  const targetRelevant = localEvidenceTeams.length > 0;
-  const koreanGuard = ensureKoreanBriefing(briefing, targetRelevant);
-  const koreanReviewReason = targetRelevant && koreanGuard.changed
+  const koreanGuard = ensureKoreanBriefing(briefing, hasPossibleTarget);
+  const koreanReviewReason = hasPossibleTarget && koreanGuard.changed
     ? '한국어 브리핑이 충분하지 않아 검수가 필요합니다.'
     : null;
   let decision = normalizeDecision(result.decision);
 
   const cleanResult = {
     ...result,
-    is_target_relevant: targetRelevant,
-    teams: targetRelevant ? localEvidenceTeams : [],
+    is_target_relevant: hasPossibleTarget,
+    teams: hasPossibleTarget ? teams : [],
     decision,
     confidence,
     entities: {
@@ -268,14 +328,18 @@ function enforcePolicy(result, post, aliases = []) {
       journalists: Array.isArray(result.entities?.journalists) ? result.entities.journalists : [],
     },
     evidence,
+    is_informative: informative,
+    requires_visual_context: requiresVisualContext,
+    is_journalist_opinion: journalistOpinion,
+    team_resolution: teamResolution,
     review_reason: reason || koreanReviewReason,
     briefing: {
       ...koreanGuard.briefing,
-      tags: targetRelevant ? localEvidenceTeams : [],
+      tags: hasPossibleTarget ? teams : [],
     },
   };
 
-  if (!targetRelevant) {
+  if (!hasPossibleTarget) {
     return {
       ...cleanResult,
       is_target_relevant: false,
@@ -286,29 +350,35 @@ function enforcePolicy(result, post, aliases = []) {
     };
   }
 
-  const canPublish =
-    PUBLISHABLE_STATUSES.has(cleanResult.briefing.status) &&
-    cleanResult.confidence >= 0.85 &&
-    !cleanResult.review_reason &&
-    hasEvidence &&
-    hasLocalPublishSignal &&
-    !mediaHeavy;
-
-  if (decision === 'publish' && !canPublish) {
+  if (!confirmedTarget || teamResolution !== 'certain') {
     return {
       ...cleanResult,
       decision: 'review',
-      review_reason: cleanResult.review_reason || (hasLocalPublishSignal
-        ? '보수적 자동 발행 정책에 따라 검수가 필요합니다.'
-        : '원문에 공식/확정 발표 키워드 근거가 없어 검수가 필요합니다.'),
+      review_reason: cleanResult.review_reason || 'team_aliases로 대상 팀을 확정할 수 없어 검수가 필요합니다.',
     };
   }
 
-  if (mediaHeavy) {
+  if (requiresVisualContext) {
     return {
       ...cleanResult,
       decision: 'review',
-      review_reason: cleanResult.review_reason || '사진/영상 중심이거나 텍스트가 짧아 검수가 필요합니다.',
+      review_reason: cleanResult.review_reason || '이미지/영상 또는 링크를 봐야 의미를 파악할 수 있어 검수가 필요합니다.',
+    };
+  }
+
+  if (!informative) {
+    return {
+      ...cleanResult,
+      decision: 'review',
+      review_reason: cleanResult.review_reason || '게시글 자체에서 전달할 정보가 부족해 검수가 필요합니다.',
+    };
+  }
+
+  if (journalistOpinion) {
+    return {
+      ...cleanResult,
+      decision: 'review',
+      review_reason: cleanResult.review_reason || '기자의 감상이나 의견이 중심인 글이라 검수가 필요합니다.',
     };
   }
 
@@ -320,15 +390,34 @@ function enforcePolicy(result, post, aliases = []) {
     };
   }
 
-  if (!PUBLISHABLE_STATUSES.has(cleanResult.briefing.status) && decision === 'publish') {
+  const canPublish =
+    cleanResult.confidence >= AUTO_PUBLISH_CONFIDENCE &&
+    !cleanResult.review_reason &&
+    hasEvidence;
+
+  if (canPublish && decision !== 'discard') {
     return {
       ...cleanResult,
-      decision: 'review',
-      review_reason: cleanResult.review_reason || '루머/업데이트/부인 상태는 자동 발행할 수 없습니다.',
+      decision: 'publish',
+      review_reason: null,
     };
   }
 
-  return cleanResult;
+  if (decision === 'publish' && !canPublish) {
+    return {
+      ...cleanResult,
+      decision: 'review',
+      review_reason: cleanResult.review_reason || (hasEvidence
+        ? `자동 발행 확신도가 ${AUTO_PUBLISH_CONFIDENCE} 미만이라 검수가 필요합니다.`
+        : '원문 텍스트 근거가 부족해 검수가 필요합니다.'),
+    };
+  }
+
+  return {
+    ...cleanResult,
+    decision: cleanResult.decision === 'publish' ? 'review' : cleanResult.decision,
+    review_reason: cleanResult.review_reason || 'AI가 검수를 요청했습니다.',
+  };
 }
 
 function solarBaseUrl() {
@@ -339,11 +428,15 @@ function systemPrompt() {
   return [
     'You classify football X posts for a Korean EPL fan product.',
     'Return JSON only. Do not return markdown, code fences, commentary, or extra text.',
-    'The JSON object must follow this exact top-level shape: is_target_relevant, teams, decision, confidence, entities, evidence, review_reason, briefing.',
+    'The JSON object must follow this exact top-level shape: is_target_relevant, teams, decision, confidence, entities, evidence, review_reason, is_informative, requires_visual_context, is_journalist_opinion, team_resolution, briefing.',
     'Only these target teams are in scope: MUN, MCI, LIV, ARS, TOT, CHE.',
     'Target team Korean names: MUN=맨유, MCI=맨시티, LIV=리버풀, ARS=아스널, TOT=토트넘, CHE=첼시.',
     'Discard posts unrelated to those six teams.',
-    'If a team is not named but a player/manager alias clearly links to one target team, tag that team. If the link is uncertain, choose review.',
+    'If a team is not named but a player/manager alias clearly links to one target team, tag that team and set team_resolution=certain. If the link is uncertain, choose review and set team_resolution=ambiguous.',
+    'Set is_informative=true when the text itself conveys football news or an update, including rumours, talks, interest, denials, collapses, injuries, contracts, squad news, or official announcements.',
+    'Set is_informative=false when the text is only a tease, reaction, generic caption, question, joke, or does not convey a concrete update.',
+    'Set requires_visual_context=true when the reader must inspect an image, video, link card, or quoted post to understand the news.',
+    'Set is_journalist_opinion=true when the post is mainly the journalist author giving a personal opinion, feeling, evaluation, joke, or reaction rather than conveying reportable information.',
     'All user-facing briefing fields must be written in Korean.',
     'The fields briefing.title, briefing.summary_short, and briefing.summary_detail must each contain Korean Hangul characters.',
     'Do not copy the English source text into briefing.summary_short or briefing.summary_detail.',
@@ -363,8 +456,10 @@ function systemPrompt() {
     'Allowed decision values: publish, review, discard.',
     'Allowed briefing.status values: OFFICIAL, CONFIRMED, UPDATE, RUMOUR, DENIED.',
     'Set briefing.status to OFFICIAL for club/player official announcements, CONFIRMED for definitive completed reports, UPDATE for progress, RUMOUR for interest/talks/possibility, and DENIED for denial/collapse/rejection.',
-    'Only choose decision=publish when the post is target-relevant, text-supported, status is OFFICIAL or CONFIRMED, confidence is at least 0.85, evidence exists, and review_reason is null.',
-    'Rumours, speculative wording, ambiguous posts, media-heavy posts, short captions, photos, and videos must go to review.',
+    'Choose decision=publish when the post has a certain target team, is_informative=true, requires_visual_context=false, is_journalist_opinion=false, evidence exists, and review_reason is null.',
+    'Rumours, speculative wording, updates, denials, collapses, and rejections can be decision=publish if they meet the same target-team and text-supported information rules.',
+    'Choose decision=review when the team is uncertain after aliases, the post needs image/video/link context, the text lacks concrete information, the post is journalist opinion, confidence is low, or Korean briefing quality is uncertain.',
+    'Choose decision=discard only when the post is unrelated to all six target teams.',
   ].join('\n');
 }
 
