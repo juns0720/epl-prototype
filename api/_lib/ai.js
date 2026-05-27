@@ -4,6 +4,31 @@ const TARGET_TEAM_CODES = TARGET_TEAMS.map(team => team.code);
 const BRIEFING_STATUSES = ['OFFICIAL', 'RUMOUR', 'UPDATE', 'CONFIRMED', 'DENIED'];
 const TEAM_RESOLUTIONS = ['certain', 'ambiguous', 'none'];
 const AUTO_PUBLISH_CONFIDENCE = 0.7;
+const TARGET_TEAM_NAME_PATTERN = [
+  'manchester united',
+  'man utd',
+  'man united',
+  'mufc',
+  'manchester city',
+  'man city',
+  'mcfc',
+  'liverpool',
+  'lfc',
+  'arsenal',
+  'tottenham',
+  'spurs',
+  'thfc',
+  'chelsea',
+  'cfc',
+  '맨유',
+  '맨시티',
+  '리버풀',
+  '아스날',
+  '아스널',
+  '토트넘',
+  '첼시',
+].join('|');
+const GENERIC_NO_INFO_PATTERN = '(?:soon|more soon|more to follow|watch|watch this|thoughts|big news soon|announcement soon)';
 const KOREAN_SUMMARY_FALLBACK = '한국어 요약 생성이 충분하지 않아 원문 확인 후 검수가 필요합니다.';
 const NON_TARGET_SUMMARY = '대상 6개 팀과 직접 연결되지 않아 폐기된 글입니다.';
 
@@ -193,6 +218,14 @@ function isClearlyNonInformative(post) {
   if (!withoutUrls) return true;
   if (withoutUrls.length < 12) return true;
 
+  const compact = withoutUrls.replace(/[^\w\s가-힣]/g, '').replace(/\s+/g, ' ').trim();
+  const targetTeamToken = `(?:${TARGET_TEAM_NAME_PATTERN})`;
+  const teamOnlyTease = new RegExp(
+    `^(?:${targetTeamToken}\\s+)?${GENERIC_NO_INFO_PATTERN}(?:\\s+${targetTeamToken})?$`,
+    'i'
+  );
+  if (teamOnlyTease.test(compact)) return true;
+
   return [
     /^soon\.?$/,
     /^more soon\.?$/,
@@ -207,8 +240,6 @@ function isClearlyNonInformative(post) {
 
 function isMediaHeavy(post) {
   if ((post.media || []).length === 0) return false;
-  const text = normalizedPostText(post);
-  if (text.length < 80) return true;
   return isClearlyNonInformative(post);
 }
 
