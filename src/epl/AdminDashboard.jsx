@@ -2,6 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 
 const STATUS_OPTIONS = ['review', 'published', 'discarded', 'rejected', 'all'];
 const BRIEFING_STATUS_OPTIONS = ['OFFICIAL', 'CONFIRMED', 'UPDATE', 'RUMOUR', 'DENIED'];
+const STATUS_LABELS = {
+  review: '검수',
+  published: '발행',
+  discarded: '폐기',
+  rejected: '반려',
+  all: '전체',
+};
+const ACTION_LABELS = {
+  approve: '승인',
+  reject: '반려',
+  update: '저장',
+};
 
 function safeJson(value) {
   try {
@@ -9,6 +21,27 @@ function safeJson(value) {
   } catch {
     return '{}';
   }
+}
+
+function Notice({ tone = 'neutral', title, children, action }) {
+  const tones = {
+    neutral: { bg: '#0f1118', color: '#cbd3e8', border: '#273044' },
+    good: { bg: '#071f16', color: '#7ce0b3', border: '#155b3c' },
+    warn: { bg: '#2b2108', color: '#ffd166', border: '#665017' },
+    bad: { bg: '#2a1115', color: '#ffb0b0', border: '#69303b' },
+  };
+  const t = tones[tone] || tones.neutral;
+  return (
+    <div className="rounded-md px-4 py-3 text-sm" style={{ background: t.bg, color: t.color, border: `1px solid ${t.border}` }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          {title && <div className="font-black text-white">{title}</div>}
+          {children && <div className={title ? 'mt-1' : ''}>{children}</div>}
+        </div>
+        {action}
+      </div>
+    </div>
+  );
 }
 
 function Badge({ children, tone = 'neutral' }) {
@@ -69,6 +102,16 @@ function Metric({ label, value }) {
   );
 }
 
+function EmptyState({ status }) {
+  const label = STATUS_LABELS[status] || status;
+  return (
+    <div className="rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
+      <div className="text-lg font-black text-white">{label} 항목이 없습니다</div>
+      <p className="mt-2 text-sm">필터를 바꾸거나 수동 수집을 실행하면 새 항목을 확인할 수 있습니다.</p>
+    </div>
+  );
+}
+
 function ItemEditor({ item, draft, onDraft, onAction, busy }) {
   const briefing = briefingFor(item);
   const title = draft.title_ko ?? briefing.title ?? '';
@@ -78,6 +121,7 @@ function ItemEditor({ item, draft, onDraft, onAction, busy }) {
   const teamTags = Array.isArray(briefing.tags) && briefing.tags.length > 0 ? briefing.tags : [];
   const evidence = item.ai_result?.evidence || [];
   const reason = item.review_reason || item.ai_result?.review_reason;
+  const reviewNote = draft.review_note ?? item.review_note ?? '';
 
   return (
     <div className="rounded-md p-4" style={{ background: '#0b0d14', border: '1px solid #202635' }}>
@@ -162,7 +206,17 @@ function ItemEditor({ item, draft, onDraft, onAction, busy }) {
             <summary className="cursor-pointer text-xs font-bold" style={{ color: '#8791aa' }}>AI JSON</summary>
             <pre className="mt-2 max-h-48 overflow-auto text-xs" style={{ color: '#a8b0c7' }}>{safeJson(item.ai_result)}</pre>
           </details>
-          <div className="flex gap-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold uppercase" style={{ color: '#687086' }}>반려 메모</span>
+            <textarea
+              value={reviewNote}
+              onChange={event => onDraft(item.id, { review_note: event.target.value })}
+              rows={2}
+              className="w-full rounded-md px-3 py-2 text-sm leading-6 outline-none"
+              style={{ background: '#11141d', color: '#fff', border: '1px solid #283040' }}
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
             <button
               disabled={busy}
               onClick={() => onAction(item, 'approve')}
@@ -199,26 +253,39 @@ export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [drafts, setDrafts] = useState({});
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState('neutral');
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const headers = useMemo(() => ({
     Authorization: `Bearer ${adminToken}`,
     'Content-Type': 'application/json',
   }), [adminToken]);
 
-  const loadItems = async () => {
-    if (!adminToken) return;
+  const loadItems = async (options = {}) => {
+    const preserveMessage = options?.preserveMessage === true;
+    if (!adminToken) {
+      setItems([]);
+      setDashboard(null);
+      setLoaded(false);
+      setError('');
+      return;
+    }
     setBusy(true);
-    setMessage('');
+    if (!preserveMessage) setMessage('');
+    setError('');
     try {
       const response = await fetch(`/api/admin/items?status=${status}&limit=100`, { headers });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to load admin items');
       setItems(data.items || []);
       setDashboard(data.dashboard || null);
+      setLoaded(true);
       localStorage.setItem('epl_admin_token', adminToken);
     } catch (error) {
-      setMessage(error.message);
+      setError(error.message);
+      setLoaded(false);
     } finally {
       setBusy(false);
     }
@@ -234,11 +301,18 @@ export default function AdminDashboard() {
   };
 
   const reviewAction = async (item, action) => {
+    const draft = drafts[item.id] || {};
+    if (action === 'reject' && !String(draft.review_note ?? item.review_note ?? '').trim()) {
+      setMessageTone('warn');
+      setMessage('반려하려면 반려 메모를 입력해 주세요.');
+      return;
+    }
+
     setBusy(true);
     setMessage('');
-    const draft = drafts[item.id] || {};
+    setError('');
     const briefing = briefingFor(item);
-    const teamTags = Array.isArray(briefing.tags) && briefing.tags.length > 0 ? briefing.tags : (item.team_tags || []);
+    const teamTags = Array.isArray(briefing.tags) ? briefing.tags : (item.team_tags || []);
     try {
       const response = await fetch('/api/admin/review', {
         method: 'POST',
@@ -251,14 +325,22 @@ export default function AdminDashboard() {
           summary_detail_ko: draft.summary_detail_ko ?? briefing.summary_detail,
           team_tags: teamTags,
           briefing_status: draft.briefing_status ?? normalizeBriefingStatus(briefing.status, item.news_type),
+          review_note: draft.review_note ?? item.review_note ?? '',
           actor: 'admin-ui',
         }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `Failed to ${action}`);
-      setMessage(`${action} 완료`);
-      await loadItems();
+      setDrafts(prev => {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      });
+      await loadItems({ preserveMessage: true });
+      setMessageTone('good');
+      setMessage(`${ACTION_LABELS[action] || action} 완료`);
     } catch (error) {
+      setMessageTone('bad');
       setMessage(error.message);
     } finally {
       setBusy(false);
@@ -267,11 +349,13 @@ export default function AdminDashboard() {
 
   const runCollection = async () => {
     if (!cronSecret) {
+      setMessageTone('warn');
       setMessage('수동 수집에는 CRON_SECRET이 필요합니다.');
       return;
     }
     setBusy(true);
     setMessage('');
+    setError('');
     try {
       const response = await fetch('/api/collect', {
         method: 'POST',
@@ -280,9 +364,11 @@ export default function AdminDashboard() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Collection failed');
       localStorage.setItem('epl_cron_secret', cronSecret);
+      await loadItems({ preserveMessage: true });
+      setMessageTone('good');
       setMessage(`수집 완료: 신규 ${data.summary?.inserted || 0}, 검수 ${data.summary?.review || 0}`);
-      await loadItems();
     } catch (error) {
+      setMessageTone('bad');
       setMessage(error.message);
     } finally {
       setBusy(false);
@@ -330,9 +416,34 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        {!adminToken && (
+          <div className="mt-4">
+            <Notice tone="warn" title="ADMIN_TOKEN을 입력해 주세요">
+              관리자 데이터를 불러오려면 Vercel 환경변수에 등록한 토큰이 필요합니다.
+            </Notice>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4">
+            <Notice
+              tone="bad"
+              title="관리자 데이터를 불러오지 못했습니다"
+              action={adminToken ? (
+                <button onClick={loadItems} disabled={busy}
+                  className="rounded-md px-3 py-2 text-sm font-bold disabled:opacity-50"
+                  style={{ background: '#ffb0b0', color: '#2a1115' }}>
+                  다시 시도
+                </button>
+              ) : null}>
+              {error}
+            </Notice>
+          </div>
+        )}
+
         {message && (
-          <div className="mt-4 rounded-md px-4 py-3 text-sm" style={{ background: '#11141d', color: '#cbd3e8', border: '1px solid #283040' }}>
-            {message}
+          <div className="mt-4">
+            <Notice tone={messageTone}>{message}</Notice>
           </div>
         )}
 
@@ -361,9 +472,15 @@ export default function AdminDashboard() {
               ))}
             </div>
             <div className="space-y-3">
-              {items.length === 0 ? (
+              {busy && !loaded ? (
                 <div className="rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
-                  No items for this filter.
+                  불러오는 중입니다.
+                </div>
+              ) : loaded && items.length === 0 ? (
+                <EmptyState status={status} />
+              ) : !loaded && adminToken && !error ? (
+                <div className="rounded-md p-8 text-center" style={{ background: '#0b0d14', border: '1px solid #202635', color: '#8791aa' }}>
+                  Refresh를 눌러 큐를 불러오세요.
                 </div>
               ) : items.map(item => (
                 <ItemEditor

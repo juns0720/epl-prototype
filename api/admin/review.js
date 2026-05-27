@@ -14,7 +14,7 @@ async function loadItem(id) {
 
 function patchForBody(body, currentItem) {
   const now = new Date().toISOString();
-  const base = {};
+  const base = { updated_at: now };
   if (typeof body.title_ko === 'string') base.title_ko = body.title_ko;
   const summaryShort = typeof body.summary_short_ko === 'string' ? body.summary_short_ko : body.summary_ko;
   if (typeof summaryShort === 'string') {
@@ -65,12 +65,16 @@ function patchForBody(body, currentItem) {
     };
   }
   if (body.action === 'reject') {
+    const reviewNote = typeof body.review_note === 'string' ? body.review_note.trim() : '';
+    if (!reviewNote) {
+      throw Object.assign(new Error('review_note is required when rejecting an item'), { statusCode: 400 });
+    }
     return {
       ...base,
       status: 'rejected',
       reviewed_at: now,
       reviewed_by: body.actor || 'admin',
-      review_note: body.review_note || null,
+      review_note: reviewNote,
     };
   }
   if (body.action === 'update') {
