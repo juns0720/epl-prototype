@@ -221,6 +221,7 @@ function ItemEditor({ item, draft, onDraft, onAction, busy }) {
             <span className="mb-1 block text-xs font-bold uppercase" style={{ color: '#687086' }}>반려 메모</span>
             <textarea
               value={reviewNote}
+              placeholder="반려할 때는 메모가 필요합니다."
               onChange={event => onDraft(item.id, { review_note: event.target.value })}
               rows={2}
               className="w-full rounded-md px-3 py-2 text-sm leading-6 outline-none"
@@ -342,6 +343,15 @@ export default function AdminDashboard() {
       });
       const data = await readJsonResponse(response);
       if (!response.ok) throw new Error(data.error || `Failed to ${action}`);
+      const updatedItem = data.item;
+      if (updatedItem?.id) {
+        setItems(prev => {
+          if (status !== 'all' && updatedItem.status !== status) {
+            return prev.filter(row => row.id !== updatedItem.id);
+          }
+          return prev.map(row => (row.id === updatedItem.id ? updatedItem : row));
+        });
+      }
       setDrafts(prev => {
         const next = { ...prev };
         delete next[item.id];

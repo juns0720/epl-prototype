@@ -56,12 +56,20 @@ function patchForBody(body, currentItem) {
   }
 
   if (body.action === 'approve') {
+    const nextAiResult = {
+      ...(base.ai_result || currentAi),
+      decision: 'publish',
+      review_reason: null,
+    };
     return {
       ...base,
+      ai_result: nextAiResult,
       status: 'published',
       published_at: now,
       reviewed_at: now,
       reviewed_by: body.actor || 'admin',
+      review_reason: null,
+      review_note: null,
     };
   }
   if (body.action === 'reject') {
@@ -69,11 +77,19 @@ function patchForBody(body, currentItem) {
     if (!reviewNote) {
       throw Object.assign(new Error('review_note is required when rejecting an item'), { statusCode: 400 });
     }
+    const nextAiResult = {
+      ...(base.ai_result || currentAi),
+      decision: 'review',
+      review_reason: reviewNote,
+    };
     return {
       ...base,
+      ai_result: nextAiResult,
       status: 'rejected',
+      published_at: null,
       reviewed_at: now,
       reviewed_by: body.actor || 'admin',
+      review_reason: reviewNote,
       review_note: reviewNote,
     };
   }
