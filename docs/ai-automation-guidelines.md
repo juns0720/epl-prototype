@@ -6,14 +6,14 @@
 
 자동화 대상 팀은 아래 6개뿐이다.
 
-| 코드 | 팀 |
-|---|---|
+| 코드  | 팀                  |
+| ----- | ------------------- |
 | `MUN` | 맨체스터 유나이티드 |
-| `MCI` | 맨체스터 시티 |
-| `LIV` | 리버풀 |
-| `ARS` | 아스날 |
-| `TOT` | 토트넘 |
-| `CHE` | 첼시 |
+| `MCI` | 맨체스터 시티       |
+| `LIV` | 리버풀              |
+| `ARS` | 아스날              |
+| `TOT` | 토트넘              |
+| `CHE` | 첼시                |
 
 대상 6개 팀과 연결되지 않는 글은 모두 `discard`다. 레알 마드리드, 바르셀로나, PSG, 바이에른 뮌헨, 도르트문트, 인터 밀란, AC 밀란 등 비대상 팀만 포함된 글도 `discard`다.
 
@@ -98,6 +98,7 @@ AI는 항상 아래 구조의 JSON 하나만 반환해야 한다.
 - `is_target_relevant=true`
 - `teams`에 대상 6개 팀 중 1개 이상이 있다.
 - `briefing.status`가 `OFFICIAL` 또는 `CONFIRMED`다.
+- 원문 텍스트에 공식 발표, 계약 완료, 확정 보도, here we go 등 서버가 인정하는 명시적 확정 키워드가 있다.
 - `confidence >= 0.85`
 - `review_reason=null`
 - `evidence`에 원본 X 텍스트 근거가 1개 이상 있다.
@@ -110,13 +111,13 @@ AI는 항상 아래 구조의 JSON 하나만 반환해야 한다.
 
 아래 글은 검수 큐로 보낸다.
 
-- 루머, 관심, 협상, 검토, 가능성, monitoring, could, talks, interested가 포함된 글
 - 선수명 또는 감독명만 있고 팀 추론이 alias에 의존하는 글
 - 대상 팀 여러 개가 등장하지만 핵심 팀이 불명확한 글
 - 사진, 영상, 링크 카드가 핵심이고 텍스트가 짧은 글
 - 요약을 만들기 위해 원문 밖 맥락이 필요한 글
 - `briefing.status`가 `RUMOUR`, `UPDATE`, `DENIED`인 글
 - Upstage Solar 호출 실패나 환경변수 누락으로 fallback classifier가 처리한 글
+- 기자의 `Understand`, `sources say`, `clear stance`, `no intention`처럼 보도/입장 전달에 가까운 글은 Solar가 `OFFICIAL`로 판단해도 검수 큐로 보낸다.
 
 ## 폐기 정책
 
@@ -142,18 +143,18 @@ AI는 항상 아래 구조의 JSON 하나만 반환해야 한다.
 
 P1 검증에서는 최소 아래 케이스를 사용한다. 실제 텍스트는 샘플이며, 기대값과 다른 결과가 나오면 AI 프롬프트나 alias를 수정한다.
 
-| 케이스 | 입력 예시 | 기대 팀 | 기대 decision | 기대 status | 이유 |
-|---|---|---:|---|---|---|
-| 직접 팀 언급 | `Manchester United officially announce new contract for Kobbie Mainoo.` | `MUN` | `publish` | `OFFICIAL` | 대상 팀 직접 언급과 공식 발표가 있음 |
-| 직접 팀 언급 루머 | `Arsenal are in talks to sign a new striker this summer.` | `ARS` | `review` | `RUMOUR` | 대상 팀이 명확하지만 talks는 루머 |
-| 선수만 언급 | `Sesko deal could move this week.` | `MUN` | `review` | `RUMOUR` | `Sesko -> MUN` alias가 있을 때만 팀 추론 가능하며 could는 루머 |
-| 감독만 언급 | `Postecoglou has approved the club's plan for the next window.` | `TOT` | `review` | `UPDATE` | 감독 alias로 팀 추론하지만 원문 팀명이 없음 |
-| 추상 표현 | `Big decision expected soon around the winger's future.` | 없음 | `discard` | `UPDATE` | 대상 팀이나 alias 근거가 없음 |
-| 비대상 팀 | `Real Madrid monitoring PSG winger before the summer window.` | 없음 | `discard` | `RUMOUR` | 대상 6개 팀과 연결되지 않음 |
-| 확정 보도 | `Here we go, Chelsea have signed the documents for the transfer.` | `CHE` | `publish` | `CONFIRMED` | 확정적 표현과 대상 팀이 있음 |
-| 미디어 중심 | `Soon.`과 사진 또는 영상만 포함 | 추론 가능 시 해당 팀 | `review` | `UPDATE` | 텍스트 근거가 부족해 자동 발행 금지 |
-| 부인/무산 | `Liverpool deny reports of an agreement for the player.` | `LIV` | `review` | `DENIED` | 대상 팀이 있지만 발행 전 검수가 필요 |
-| 대상 팀 간 이적 | `Manchester City and Chelsea discussed a possible swap deal.` | `MCI`, `CHE` | `review` | `RUMOUR` | 대상 팀 둘 다 태그하지만 possible은 루머 |
+| 케이스            | 입력 예시                                                               |              기대 팀 | 기대 decision | 기대 status | 이유                                                           |
+| ----------------- | ----------------------------------------------------------------------- | -------------------: | ------------- | ----------- | -------------------------------------------------------------- |
+| 직접 팀 언급      | `Manchester United officially announce new contract for Kobbie Mainoo.` |                `MUN` | `publish`     | `OFFICIAL`  | 대상 팀 직접 언급과 공식 발표가 있음                           |
+| 직접 팀 언급 루머 | `Arsenal are in talks to sign a new striker this summer.`               |                `ARS` | `review`      | `RUMOUR`    | 대상 팀이 명확하지만 talks는 루머                              |
+| 선수만 언급       | `Sesko deal could move this week.`                                      |                `MUN` | `review`      | `RUMOUR`    | `Sesko -> MUN` alias가 있을 때만 팀 추론 가능하며 could는 루머 |
+| 감독만 언급       | `Postecoglou has approved the club's plan for the next window.`         |                `TOT` | `review`      | `UPDATE`    | 감독 alias로 팀 추론하지만 원문 팀명이 없음                    |
+| 추상 표현         | `Big decision expected soon around the winger's future.`                |                 없음 | `discard`     | `UPDATE`    | 대상 팀이나 alias 근거가 없음                                  |
+| 비대상 팀         | `Real Madrid monitoring PSG winger before the summer window.`           |                 없음 | `discard`     | `RUMOUR`    | 대상 6개 팀과 연결되지 않음                                    |
+| 확정 보도         | `Here we go, Chelsea have signed the documents for the transfer.`       |                `CHE` | `publish`     | `CONFIRMED` | 확정적 표현과 대상 팀이 있음                                   |
+| 미디어 중심       | `Soon.`과 사진 또는 영상만 포함                                         | 추론 가능 시 해당 팀 | `review`      | `UPDATE`    | 텍스트 근거가 부족해 자동 발행 금지                            |
+| 부인/무산         | `Liverpool deny reports of an agreement for the player.`                |                `LIV` | `review`      | `DENIED`    | 대상 팀이 있지만 발행 전 검수가 필요                           |
+| 대상 팀 간 이적   | `Manchester City and Chelsea discussed a possible swap deal.`           |         `MCI`, `CHE` | `review`      | `RUMOUR`    | 대상 팀 둘 다 태그하지만 possible은 루머                       |
 
 ## 관리자 검수 체크리스트
 

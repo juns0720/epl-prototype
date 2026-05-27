@@ -201,6 +201,7 @@ function enforcePolicy(result, post, aliases = []) {
   const evidence = Array.isArray(result.evidence) ? result.evidence.filter(Boolean).map(String) : [];
   const hasEvidence = evidence.length > 0;
   const mediaHeavy = isMediaHeavy(post);
+  const hasLocalPublishSignal = hasAny(post.text, OFFICIAL_KEYWORDS);
   const reason = reviewReason(result.review_reason);
   const targetRelevant = Boolean(result.is_target_relevant) && localEvidenceTeams.length > 0;
   let decision = normalizeDecision(result.decision);
@@ -244,13 +245,16 @@ function enforcePolicy(result, post, aliases = []) {
     cleanResult.confidence >= 0.85 &&
     !cleanResult.review_reason &&
     hasEvidence &&
+    hasLocalPublishSignal &&
     !mediaHeavy;
 
   if (decision === 'publish' && !canPublish) {
     return {
       ...cleanResult,
       decision: 'review',
-      review_reason: cleanResult.review_reason || '보수적 자동 발행 정책에 따라 검수가 필요합니다.',
+      review_reason: cleanResult.review_reason || (hasLocalPublishSignal
+        ? '보수적 자동 발행 정책에 따라 검수가 필요합니다.'
+        : '원문에 공식/확정 발표 키워드 근거가 없어 검수가 필요합니다.'),
     };
   }
 
