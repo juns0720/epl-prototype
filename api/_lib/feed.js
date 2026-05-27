@@ -10,7 +10,7 @@ function briefingFor(item) {
     title: item.title_ko || aiBriefing.title,
     summary_short: item.summary_short_ko || item.summary_ko || aiBriefing.summary_short,
     summary_detail: item.summary_detail_ko || aiBriefing.summary_detail || item.summary_ko,
-    tags: Array.isArray(item.team_tags) && item.team_tags.length > 0 ? item.team_tags : aiBriefing.tags,
+    tags: Array.isArray(item.team_tags) ? item.team_tags : aiBriefing.tags,
     status: item.briefing_status || aiBriefing.status,
   };
 }

@@ -18,9 +18,9 @@
 ## 현재 커서
 
 - 현재 단계: `P4 관리자 검수`
-- 현재 작업: `P4-T1`
+- 현재 작업: `P4-T2`
 - 상세 문서: `docs/plans/ai-automation/04-admin-review.md`
-- 목표: `관리자 화면과 API 필드를 P1/P2 브리핑 계약에 맞게 정렬한다.`
+- 목표: `토큰 없음, API 오류, 빈 큐 상태를 관리자 화면에서 이해 가능하게 보이도록 정리한다.`
 
 ## 상태 표기
 
@@ -131,7 +131,7 @@ P3 종료 확인:
 
 | 상태 | 작업 | 주요 파일 | 완료 조건 |
 |---|---|---|---|
-| [ ] | P4-T1 UI 필드를 P1/P2와 정렬 | `src/epl/AdminDashboard.jsx`, `api/admin/items.js` | 관리자 화면이 short/detail summary와 briefing status를 표시함 |
+| [x] | P4-T1 UI 필드를 P1/P2와 정렬 | `src/epl/AdminDashboard.jsx`, `api/admin/items.js` | 관리자 화면이 short/detail summary와 briefing status를 표시함 |
 | [ ] | P4-T2 empty/error 상태 추가 | `src/epl/AdminDashboard.jsx` | 토큰 없음, API 오류, 빈 큐 상태가 이해 가능함 |
 | [ ] | P4-T3 approve flow 추가 | `api/admin/review.js`, `api/_lib/slack.js` | 승인 시 published 필드가 갱신되고 Slack 발행 알림이 감 |
 | [ ] | P4-T4 reject flow 추가 | `api/admin/review.js`, `src/epl/AdminDashboard.jsx` | 반려 시 `rejected`가 되고 reviewer note가 저장됨 |
@@ -217,6 +217,9 @@ P6 종료 확인:
   - Upstage Solar가 실제 X 글을 briefing 제목/짧은 요약/상세 요약/status/tags로 변환함.
   - `@TheAthleticFC` 안의 `CFC`처럼 문자열 내부 alias가 팀 태그로 오탐되지 않게 보수 매칭을 추가함.
   - live `team_aliases`의 넓은 club alias를 비활성화하고 오탐 테스트 row를 정리함.
+- P4 관리자 검수 정렬:
+  - 관리자 카드가 `title_ko`, `summary_short_ko`, `summary_detail_ko`, `briefing_status`, `team_tags`를 우선 사용함.
+  - `team_tags=[]`도 정규화된 결과로 인정해 과거 `ai_result`의 오탐 태그가 다시 보이지 않게 함.
 
 ## 남은 빈틈
 
