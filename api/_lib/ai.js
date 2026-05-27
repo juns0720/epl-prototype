@@ -150,6 +150,17 @@ function normalizeBriefing(result, teams, post) {
   };
 }
 
+function neutralBriefing(post) {
+  const snippet = textSnippet(post) || '원문 텍스트가 비어 있습니다.';
+  return {
+    title: '비대상 EPL 업데이트',
+    summary_short: snippet,
+    summary_detail: snippet,
+    tags: [],
+    status: 'UPDATE',
+  };
+}
+
 function fallbackStatus({ relevant, officialish, rumourish }) {
   if (!relevant) return 'UPDATE';
   if (rumourish) return 'RUMOUR';
@@ -233,10 +244,7 @@ function enforcePolicy(result, post, aliases = []) {
       teams: [],
       decision: 'discard',
       review_reason: null,
-      briefing: {
-        ...cleanResult.briefing,
-        tags: [],
-      },
+      briefing: neutralBriefing(post),
     };
   }
 
@@ -295,10 +303,21 @@ function systemPrompt() {
     'Return JSON only. Do not return markdown, code fences, commentary, or extra text.',
     'The JSON object must follow this exact top-level shape: is_target_relevant, teams, decision, confidence, entities, evidence, review_reason, briefing.',
     'Only these target teams are in scope: MUN, MCI, LIV, ARS, TOT, CHE.',
+    'Target team Korean names: MUN=맨유, MCI=맨시티, LIV=리버풀, ARS=아스널, TOT=토트넘, CHE=첼시.',
     'Discard posts unrelated to those six teams.',
     'If a team is not named but a player/manager alias clearly links to one target team, tag that team. If the link is uncertain, choose review.',
     'All user-facing briefing fields must be written in Korean.',
     'Use only facts stated in the original X post. Do not add background context, fan sentiment, source credibility commentary, debate framing, opinion, or emotional wording.',
+    'Never mention names, seasons, clubs, records, or historical context that are not literally present in the original X post.',
+    'Do not add "reported by", "according to", source attribution, or journalist framing unless that wording is visible in the original X post text.',
+    'The author_handle is metadata for routing only, not a fact to include in briefing text.',
+    'Every person name in briefing.title, briefing.summary_short, and briefing.summary_detail must correspond to a person name visible in the original X post.',
+    'Preserve visible person names accurately. If the post says "Mikel Arteta", write "미켈 아르테타"; do not replace him with Arsenal or "아르센".',
+    'Write Arsenal as "아스널"; never write Arsenal as "아르센".',
+    'Do not introduce historical person names such as Arsene Wenger, Sir Alex Ferguson, Jose Mourinho, Pep Guardiola, Jurgen Klopp, or Mauricio Pochettino unless the original X post contains that name.',
+    'If the post says a generic fact such as "first title in 22 years", translate that fact literally; do not infer who the previous manager was or what season it refers to.',
+    'For example, if an Arsenal post says only "first title in 22 years", do not write "아르센 벵거 이후".',
+    'For discarded posts, keep the briefing neutral and based only on the visible text.',
     'Do not use clickbait, exclamation marks, emojis, or exaggerated Korean words such as 충격, 초대형, 전격.',
     'Use speculative Korean reporting endings for unconfirmed information.',
     'Allowed decision values: publish, review, discard.',

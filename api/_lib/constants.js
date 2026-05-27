@@ -2,22 +2,22 @@ const TARGET_TEAMS = [
   {
     code: 'MUN',
     name: 'Manchester United',
-    aliases: ['manchester united', 'man utd', 'man united', 'manutd', 'utd', 'red devils', '맨유', '맨체스터 유나이티드'],
+    aliases: ['manchester united', 'man utd', 'man united', 'manutd', 'mufc', 'red devils', '맨유', '맨체스터 유나이티드'],
   },
   {
     code: 'MCI',
     name: 'Manchester City',
-    aliases: ['manchester city', 'man city', 'mancity', 'city', 'mcfc', '맨시티', '맨체스터 시티'],
+    aliases: ['manchester city', 'man city', 'mancity', 'mcfc', '맨시티', '맨체스터 시티'],
   },
   {
     code: 'LIV',
     name: 'Liverpool',
-    aliases: ['liverpool', 'lfc', 'reds', '리버풀'],
+    aliases: ['liverpool', 'lfc', '리버풀'],
   },
   {
     code: 'ARS',
     name: 'Arsenal',
-    aliases: ['arsenal', 'afc', 'gunners', '아스날', '아스널'],
+    aliases: ['arsenal', 'gunners', '아스날', '아스널'],
   },
   {
     code: 'TOT',
@@ -27,9 +27,11 @@ const TARGET_TEAMS = [
   {
     code: 'CHE',
     name: 'Chelsea',
-    aliases: ['chelsea', 'cfc', 'blues', '첼시'],
+    aliases: ['chelsea', 'cfc', '첼시'],
   },
 ];
+
+const AMBIGUOUS_ALIASES = new Set(['afc', 'blues', 'city', 'reds', 'united', 'utd']);
 
 const OFFICIAL_KEYWORDS = [
   'official',
@@ -76,20 +78,40 @@ function normalizeText(text) {
   return String(text || '').toLowerCase();
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function shouldUseWordBoundary(alias) {
+  return /^[a-z0-9][a-z0-9\s.'_-]*$/i.test(alias);
+}
+
+function matchesAlias(normalized, alias) {
+  const normalizedAlias = normalizeText(alias).trim();
+  if (!normalizedAlias || AMBIGUOUS_ALIASES.has(normalizedAlias)) return false;
+
+  if (!shouldUseWordBoundary(normalizedAlias)) {
+    return normalized.includes(normalizedAlias);
+  }
+
+  const pattern = escapeRegExp(normalizedAlias).replace(/\s+/g, '\\s+');
+  return new RegExp(`(^|[^a-z0-9])${pattern}([^a-z0-9]|$)`).test(normalized);
+}
+
 function matchTeams(text, aliases = []) {
   const normalized = normalizeText(text);
   const matches = new Set();
 
   for (const team of TARGET_TEAMS) {
     for (const alias of team.aliases) {
-      if (normalized.includes(alias.toLowerCase())) matches.add(team.code);
+      if (matchesAlias(normalized, alias)) matches.add(team.code);
     }
   }
 
   for (const row of aliases) {
     const alias = row.alias || row.label;
     const teamCode = row.team_code || row.teamCode;
-    if (alias && teamCode && normalized.includes(String(alias).toLowerCase())) {
+    if (alias && teamCode && matchesAlias(normalized, alias)) {
       matches.add(teamCode);
     }
   }

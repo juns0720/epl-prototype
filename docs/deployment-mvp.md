@@ -65,6 +65,8 @@ having count(*) > 1;
 
 기존 `summary_ko`, `news_type`은 호환용으로 남긴다. 신규 코드와 UI는 `summary_short_ko`, `summary_detail_ko`, `briefing_status`, `review_reason`을 우선 사용한다.
 
+그 다음 `supabase/migrations/20260527_p3_conservative_aliases.sql`을 실행한다. 이 마이그레이션은 `City`, `United`, `AFC`, `Reds`, `Blues`처럼 너무 넓은 club alias를 비활성화해 `@TheAthleticFC` 같은 문자열 때문에 첼시가 잘못 태그되는 문제를 막는다.
+
 ## Source 입력 방식
 
 MVP에서는 기자 계정을 코드에 넣지 않는다. 사용자가 직접 `sources` row를 관리한다.

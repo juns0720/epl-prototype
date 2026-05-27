@@ -17,10 +17,10 @@
 
 ## 현재 커서
 
-- 현재 단계: `P3 수집 파이프라인`
-- 현재 작업: `P3-T7`
-- 상세 문서: `docs/plans/ai-automation/03-ingestion-pipeline.md`
-- 목표: `실제 source 글 1개가 Upstage Solar를 거쳐 briefing 필드로 저장되는지 검증한다.`
+- 현재 단계: `P4 관리자 검수`
+- 현재 작업: `P4-T1`
+- 상세 문서: `docs/plans/ai-automation/04-admin-review.md`
+- 목표: `관리자 화면과 API 필드를 P1/P2 브리핑 계약에 맞게 정렬한다.`
 
 ## 상태 표기
 
@@ -116,7 +116,7 @@ P2 종료 확인:
 | [x] | P3-T4 오류 처리 검증 | `api/collect.js`, `api/_lib/audit.js`, `api/_lib/slack.js` | X/Upstage Solar/Supabase 실패가 audit event로 남음 |
 | [x] | P3-T5 보수 라우팅 검증 | `api/_lib/ai.js`, `api/collect.js` | 루머/미디어 중심 글은 publish가 아니라 review로 감 |
 | [x] | P3-T6 collector smoke test 문서화 | `docs/deployment-mvp.md`, `03-ingestion-pipeline.md` | 수동 curl과 예상 응답이 문서화됨 |
-| [ ] | P3-T7 실제 X 글 AI 요약 검증 | `api/collect.js`, `api/_lib/ai.js`, Supabase `content_items` | 실제 source 글 1개가 Upstage Solar를 거쳐 briefing 제목/짧은 요약/상세 요약/status/tags로 저장됨 |
+| [x] | P3-T7 실제 X 글 AI 요약 검증 | `api/collect.js`, `api/_lib/ai.js`, Supabase `content_items` | 실제 source 글 1개가 Upstage Solar를 거쳐 briefing 제목/짧은 요약/상세 요약/status/tags로 저장됨 |
 
 P3 종료 확인:
 
@@ -212,10 +212,16 @@ P6 종료 확인:
   - 기자 source 입력 방식과 seed 예시가 문서화됨.
   - alias stale 처리 규칙이 문서화됨.
   - collector 중복 기준이 X 전역 `raw_post_id`로 정렬됨.
+- P3 수집 파이프라인 검증:
+  - Vercel 배포 환경에서 실제 X source를 수집하고 Supabase에 저장함.
+  - Upstage Solar가 실제 X 글을 briefing 제목/짧은 요약/상세 요약/status/tags로 변환함.
+  - `@TheAthleticFC` 안의 `CFC`처럼 문자열 내부 alias가 팀 태그로 오탐되지 않게 보수 매칭을 추가함.
+  - live `team_aliases`의 넓은 club alias를 비활성화하고 오탐 테스트 row를 정리함.
 
 ## 남은 빈틈
 
-- live Supabase, X API, Upstage Solar, Slack, Cron 검증은 아직 하지 않음.
+- 외부 Cron 15분 반복 검증은 아직 하지 않음.
+- 관리자 승인/반려/수정 E2E 검증은 P4에서 진행해야 함.
 
 ## 결정 기록
 
@@ -225,10 +231,8 @@ P6 종료 확인:
 - Slack Incoming Webhook 2개를 사용한다.
 - 15분 수집은 외부 Cron으로 실행한다.
 - 자동 발행은 보수적으로 처리한다.
-- live 데이터 검증 전까지 mock feed fallback을 유지한다.
+- live 데이터가 비어 있거나 API가 실패할 수 있으므로 mock feed fallback을 유지한다.
 
 ## 막힌 점
 
-- 실제 환경변수가 이 workspace에 설정되어 있지 않다.
-- Supabase schema를 live 프로젝트에 적용하지 않았다.
-- X API, Upstage Solar, Slack end-to-end 호출을 live credential로 검증하지 않았다.
+- 현재 막힌 점 없음.

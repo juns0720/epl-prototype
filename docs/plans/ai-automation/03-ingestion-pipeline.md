@@ -77,3 +77,13 @@ Invoke-RestMethod `
 - 신규 글이 없으면 `fetched=0` 또는 `skipped` 중심으로 끝날 수 있다.
 - source 하나가 실패해도 전체 응답은 `ok=true`이고 `summary.errors`에 실패 source가 들어간다.
 - 실패는 `audit_events`의 `collector_source_failed` 또는 `collector_run_completed` payload에서 확인한다.
+
+## P3-T7 실제 검증 기록
+
+2026-05-27에 Vercel 배포 환경과 live Supabase에서 실제 X source를 수집해 검증했다.
+
+- `David_Ornstein` source에서 Liverpool 관련 글이 `team_tags=["LIV"]`, `briefing_status="RUMOUR"`, `status="review"`로 저장됨.
+- `SkySportsPL` source에서 Arsenal 관련 글이 `team_tags=["ARS"]`, `briefing_status="CONFIRMED"`, `status="review"`로 저장됨.
+- `@TheAthleticFC` 안에 포함된 `CFC` 문자열이 첼시로 오탐되는 문제를 발견해 alias 매칭을 단어/해시태그 경계 기반으로 보강함.
+- `City`, `United`, `AFC`, `Reds`, `Blues` 같은 넓은 club alias는 live `team_aliases`에서 `active=false`로 정리함.
+- Upstage Solar가 `first title in 22 years`를 원문 밖 역사 맥락으로 확장하지 않도록 프롬프트를 강화하고, 폐기 row에는 Solar가 만든 추정 요약 대신 원문 기반 중립 브리핑을 저장하도록 보강함.
