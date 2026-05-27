@@ -17,10 +17,10 @@
 
 ## 현재 커서
 
-- 현재 단계: `P4 관리자 검수`
-- 현재 작업: `P4-T2`
-- 상세 문서: `docs/plans/ai-automation/04-admin-review.md`
-- 목표: `토큰 없음, API 오류, 빈 큐 상태를 관리자 화면에서 이해 가능하게 보이도록 정리한다.`
+- 현재 단계: `P5 피드 발행`
+- 현재 작업: `P5-T1`
+- 상세 문서: `docs/plans/ai-automation/05-feed-publishing.md`
+- 목표: `/api/feed`가 P1 briefing 필드를 사용해 발행된 글을 공급하는지 정렬한다.`
 
 ## 상태 표기
 
@@ -132,11 +132,11 @@ P3 종료 확인:
 | 상태 | 작업 | 주요 파일 | 완료 조건 |
 |---|---|---|---|
 | [x] | P4-T1 UI 필드를 P1/P2와 정렬 | `src/epl/AdminDashboard.jsx`, `api/admin/items.js` | 관리자 화면이 short/detail summary와 briefing status를 표시함 |
-| [ ] | P4-T2 empty/error 상태 추가 | `src/epl/AdminDashboard.jsx` | 토큰 없음, API 오류, 빈 큐 상태가 이해 가능함 |
-| [ ] | P4-T3 approve flow 추가 | `api/admin/review.js`, `api/_lib/slack.js` | 승인 시 published 필드가 갱신되고 Slack 발행 알림이 감 |
-| [ ] | P4-T4 reject flow 추가 | `api/admin/review.js`, `src/epl/AdminDashboard.jsx` | 반려 시 `rejected`가 되고 reviewer note가 저장됨 |
-| [ ] | P4-T5 update flow 추가 | `api/admin/review.js`, `src/epl/AdminDashboard.jsx` | save가 발행 없이 한국어 문구만 수정함 |
-| [ ] | P4-T6 관리자 반응형 레이아웃 검증 | `src/epl/AdminDashboard.jsx` | 데스크톱/모바일 폭에서 UI 겹침이 없음 |
+| [x] | P4-T2 empty/error 상태 추가 | `src/epl/AdminDashboard.jsx` | 토큰 없음, API 오류, 빈 큐 상태가 이해 가능함 |
+| [x] | P4-T3 approve flow 추가 | `api/admin/review.js`, `api/_lib/slack.js` | 승인 시 published 필드가 갱신되고 Slack 발행 알림이 감 |
+| [x] | P4-T4 reject flow 추가 | `api/admin/review.js`, `src/epl/AdminDashboard.jsx` | 반려 시 `rejected`가 되고 reviewer note가 저장됨 |
+| [x] | P4-T5 update flow 추가 | `api/admin/review.js`, `src/epl/AdminDashboard.jsx` | save가 발행 없이 한국어 문구만 수정함 |
+| [x] | P4-T6 관리자 반응형 레이아웃 검증 | `src/epl/AdminDashboard.jsx` | 데스크톱/모바일 폭에서 UI 겹침이 없음 |
 
 P4 종료 확인:
 
@@ -220,11 +220,16 @@ P6 종료 확인:
 - P4 관리자 검수 정렬:
   - 관리자 카드가 `title_ko`, `summary_short_ko`, `summary_detail_ko`, `briefing_status`, `team_tags`를 우선 사용함.
   - `team_tags=[]`도 정규화된 결과로 인정해 과거 `ai_result`의 오탐 태그가 다시 보이지 않게 함.
+  - 토큰 없음, API 오류, 빈 큐, 수집/저장/승인/반려 결과 메시지를 UI에서 구분함.
+  - 반려 메모 입력과 서버 검증을 추가해 `review_note`가 저장됨.
+  - 배포된 `/api/admin/review`로 update/reject/approve 플로우를 실제 Supabase 테스트 row에 대해 검증함.
+  - 승인 플로우에서 `published_at`, `reviewed_by`가 저장되고 `slack_notify_failed` audit 이벤트가 없음을 확인함.
+  - 모바일 390px, 데스크톱 1440px CDP 캡처에서 관리자 화면 가로 overflow가 없음을 확인함.
 
 ## 남은 빈틈
 
 - 외부 Cron 15분 반복 검증은 아직 하지 않음.
-- 관리자 승인/반려/수정 E2E 검증은 P4에서 진행해야 함.
+- 발행된 live item이 기존 모바일/데스크톱 피드에 노출되는 E2E 검증은 P5/P6에서 진행해야 함.
 
 ## 결정 기록
 

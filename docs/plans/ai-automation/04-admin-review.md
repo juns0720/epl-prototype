@@ -43,3 +43,14 @@
 - 관리자가 DB에 직접 접근하지 않고 review item을 발행할 수 있다.
 - 관리자가 DB에 직접 접근하지 않고 부적절한 item을 반려할 수 있다.
 - item이 없어도 관리자 페이지가 정상 로드된다.
+
+## P4 검증 기록
+
+2026-05-27에 배포된 관리자 API와 live Supabase에서 검증했다.
+
+- `update` 테스트: `status=review`를 유지한 채 `title_ko`, `summary_short_ko`, `summary_detail_ko`, `briefing_status`가 수정됨.
+- `reject` 테스트: `status=rejected`, `review_note`, `reviewed_by`가 저장됨.
+- `approve` 테스트: `status=published`, `published_at`, `reviewed_by`가 저장되고 `admin_approve` audit event가 생성됨.
+- Slack 발행 알림 실패를 뜻하는 `slack_notify_failed` audit event는 생성되지 않음.
+- 테스트 row는 검증 후 운영 큐 오염을 막기 위해 `discarded`로 정리함.
+- 헤드리스 Chrome CDP 기준 모바일 390px 화면에서 `scrollWidth=390`, 데스크톱 1440px 화면에서 `scrollWidth=1425`로 가로 overflow가 없음.
